@@ -1,0 +1,3 @@
+vault_ipaserver_admin_password: 'password'
+vault_ipaserver_dir_admin_password: 'password2'
+

@@ -1,0 +1,99 @@
+---
+- name: Hard set the hostname
+  hostname: name={{ ansible_hostname}}.{{ipaserver_domain}}
+
+- name: Add host entry
+  lineinfile:
+    dest=/etc/hosts
+    regexp="{{ ansible_hostname }}"
+    line="{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ipaserver_domain}}"
+    state=present
+    owner=root
+    group=root
+    mode=0644
+- name: remove localhost line for now, since  KDC service does not listen on localhost
+  lineinfile:
+    dest=/etc/hosts
+    regexp="127\.0\.0\.1"
+    state=absent
+    owner=root
+    group=root
+    mode=0644
+
+- stat: path=/etc/cloud/cloud.cfg
+  register: isOpenstack
+
+- name: take out update_host prevent hostname changed by cloud-init
+  lineinfile:
+    dest=/etc/cloud/cloud.cfg
+    regexp="update_hostname"
+    state=absent
+  when: isOpenstack.stat.exists == True
+
+# CPRNG
+- name: Install rng tools for faster random generator
+  yum: name=rng-tools state=present
+
+- name: Start the rngd service
+  service: name=rngd enabled=yes state=started
+
+- name: Remove chrony (FreeIPA uses ntpd)  if exist
+  yum: name={{ item }} state=absent
+  with_items:
+   - chrony
+#   - ipa-server
+#   - ipa-client 
+#   - bind-dyndb-ldap
+#   - bind-pkcs11
+- name: Ensure software is installed (yum)
+  yum: name={{ item }} state=present
+  with_items: '{{ipaserver_packages}}'
+  when: ansible_distribution == "CentOS" or
+        (ansible_distribution == "Fedora" and ansible_distribution_version|int <= 21)
+
+- name: Ensure software is installed (dnf)
+  dnf: name={{ item }} state=present
+  with_items: '{{ipaserver_packages}}'
+  when: ansible_distribution == "Fedora" and ansible_distribution_version|int > 21
+
+- name: Run the ipaserver installer, this will take several minutes, go take a coffee break..
+  action: command
+    {{ ipaserver_base_command }}
+    --realm {{ ipaserver_realm }}
+    --domain {{ ipaserver_domain }}
+    -a {{ ipaserver_admin_password }}
+    -p {{ ipaserver_dir_admin_password }}
+    --hostname={{ ansible_hostname }}.{{ipaserver_domain}}
+    --ip-address={{ ansible_eth0.ipv4.address }}
+    {{ '--idstart=%s' % ipaserver_idstart if ipaserver_idstart | default(False) else '' }}
+    {{ '--idmax=%s' % ipaserver_idmax if ipaserver_idmax | default(False) else '' }}
+    {{ '--forwarder=%s' % ipaserver_dns_forwarder
+       if ipaserver_dns_forwarder | default(False) else '--no-forwarders' }}
+    {{ '--mkhomedir' if ipaserver_mkhomedir | default(True) else '' }}
+    {{ '--setup-dns' if ipaserver_setup_dns | default(True) else '' }}
+    {{ '--ssh-trust-dns' if ipaserver_ssh_trust_dns | default(True) else '' }}
+    {{ '' if ipaserver_hbac_allow | default(True) else '--no_hbac_allow' }}
+    {{ '' if ipaserver_setup_ntp | default(True) else '--no-ntp' }}
+    {{ '' if ipaserver_configure_ssh | default(True) else '--no-ssh' }}
+    {{ '' if ipaserver_configure_sshd | default(True) else '--no-sshd' }}
+    {{ '' if ipaserver_ui_redirect | default(True) else '--no-ui-redirect' }}
+    creates=/etc/ipa/default.conf
+
+- name: Create the rndc configuration file and key
+  command: "{{item}}"
+  with_items:
+   - /usr/sbin/rndc-confgen -a
+   - /sbin/restorecon /etc/rndc.key
+   - chown root:named /etc/rndc.key
+   - chmod 0640 /etc/rndc.key
+
+- name: Add localhost mapping to host.domain for httpd cert to match.
+  lineinfile:
+    dest=/etc/hosts
+    regexp="^127\.0\.0\.1"
+    line="127.0.0.1 {{ ansible_hostname }}.{{ipaserver_domain}}"
+    state=present
+    owner=root
+    group=root
+    mode=0644
+
