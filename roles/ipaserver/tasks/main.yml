@@ -1,7 +1,7 @@
 ---
-- name: upgrade all package
-  yum name=* state=latest
-
+#- name: upgrade all package
+#  yum name=* state=latest
+#
 - name: Hard set the hostname
   hostname: name={{ ansible_hostname}}.{{ipaserver_domain}}
 
