@@ -17,19 +17,24 @@ Primarily tested and functional on centos, openstack instance, but open to other
     		ipaserver_dir_admin_password
 	copy vars/private-idm.yml.sample to vars/private-idm.yml and enter default for passwords.
 	you might also change the password as run time.
+	
+	3. update roles/ipaserver/defaults/main.yml to set default values likes domain name, realm etc.
 
-	3. update hostname/IP in hosts file
+	4. update hostnames/IPs in hosts file
 
-To install IPA Master server
+To install IPA Master server:
 	ansible-playbook -i hosts -v ipamaster.yml
 
 troubleshoot/lession learned:
-after install, ipactl restart failed on name server.
-find out hostname was reset back to hostname.novalocal by cloud-init.
-remove update-hostname in /etc/cloud/cloud.cfg, it's now part of ansible script.
-pki tomcat service failed to restart after install completed, and first ipactl restart.
-need to add 127.0.0.1 hostname.hostdomain back to /etc/hosts after install complete, to resolve issue with httpd cert is using hostame, and virtual host is expecting 127.0.0.1 in httpd. 
+
+after install and reboot, ipactl failed to restart on name server.
+Find out hostname was reset back to hostname.novalocal by cloud-init on reboot.
+add remove update-hostname in /etc/cloud/cloud.cfg to ipaserver/task/main.yml.
+pki tomcat service failed at first ipctl restart after install completed.
+further investigation show we need to add 127.0.0.1 hostname.hostdomain back to /etc/hosts after install complete. this is needed to resolve issue with httpd cert is using hostame, and virtual host is expecting 127.0.0.1 in httpd. 
 127.0.0.1 should not be exist in /etc/host prior ipa-server install as KDC service will not work with localhost.
 updated ansible script to remove 127.0.0.1 entry from  /etc/hosts prior install, and add 127.0.0.1 hostname.hostdomain back to /etc/hosts after ipa-server install.
 need to update DNS record to reflect external IP instead of internal IP for the server that are running on openstack instance.
+
+
 
