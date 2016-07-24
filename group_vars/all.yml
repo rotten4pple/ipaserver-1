@@ -25,7 +25,7 @@ ipaserver_configure_ssh: True
 ipaserver_configure_sshd: True
 ipaserver_mkhomedir: True
 #only set this to true, if you want to do a clean reinstall of IPA server/replica
-force_uninstall: True
+force_uninstall: False
 
 #enable migrate for other IPA master
 migrate_enable: False
