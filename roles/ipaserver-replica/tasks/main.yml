@@ -1,0 +1,129 @@
+---
+- name: add client to the ipa master's DNS
+  command: "{{item}}"
+  with_items:
+   - echo {{ vault_ipaserver_admin_password }} | kinit admin
+   - ipa dnsrecord-add {{ipaserver_domain}} {{ansible_hostname}} --a-rec {{ ansible_eth0.ipv4.address }} --a-create-reverse
+  delegate_to: "{{groups['ipamaster'][0]}}"
+  ignore_errors: yes
+  
+
+- name: force uninstall is true, remove ipa replica from ipa-replica agreement
+  command: "{{item}}"
+  with_items:
+   - ipa-replica-manage del ipa-replica1.dsra.io --force
+   - rm -f /var/lib/ipa/replica-info-{{ ansible_fqdn }}.gpg
+  delegate_to: "{{groups['ipamaster'][0]}}"
+  ignore_errors: yes
+  when: force_uninstall
+
+- name: force uninstall is true, uninstall ipa-server-
+  command: ipa-server-install --uninstall -U
+  ignore_errors: yes
+  when: force_uninstall
+
+- name: Prepare replication
+  tags:
+    - ipaserver-replica
+    - ipa-install
+  command: >
+    ipa-replica-prepare
+    --password={{ vault_ipaserver_dir_admin_password }}
+    --ip-address={{ ansible_eth0.ipv4.address }}
+    {{ ansible_hostname }}.{{ipaserver_domain}}
+  args:
+    creates: /var/lib/ipa/replica-info-{{ ansible_fqdn }}.gpg
+  delegate_to: "{{item}}"
+  with_items: "{{ groups['ipamaster'] }}"
+
+- name: Fetch replication file
+  tags:
+    - ipaserver-replica
+    - ipa-install
+    - fetch
+  fetch:
+    src=/var/lib/ipa/replica-info-{{ ansible_fqdn }}.gpg
+    dest={{ ipa_data_dir }}/replica-info-{{ ansible_fqdn }}.gpg
+    rsync_path="su -c rsync"
+    flat=yes
+  delegate_to: "{{item}}"
+  with_items: "{{ groups['ipamaster'] }}"
+
+- set_fact: ipaMasterIP="{{ groups['ipamaster'][0] }}"
+
+
+- name: Add master ipa DNS to /etc/resolv.conf
+  lineinfile:
+    dest=/etc/resolv.conf
+    regexp="^nameserver"
+    line="nameserver {{ipaMasterIP }}"
+    insertbefore=yes
+    state=present
+    owner=root
+    group=root
+    mode=0644
+
+- name: create directore /var/lib/ipa
+  file: path=/var/lib/ipa state=directory
+  
+- name: Copy replication file
+  tags:
+    - ipaserver-replica
+    - ipa-install
+  copy:
+    src={{ ipa_data_dir }}/replica-info-{{ ansible_fqdn }}.gpg
+    dest=/var/lib/ipa/replica-info-{{ ansible_fqdn }}.gpg
+
+
+- name: install ipa server and dns packages
+  yum: name={{ item }} state=present
+  with_items:
+   - bind
+   - bind-pkcs11
+   - bind-pkcs11-utils
+   - bind-dyndb-ldap
+   - ipa-server-dns
+   - ipa-server
+   - ipa-client
+   - ipa-admintools
+- name: install replica
+  tags:
+    - ipaserver-replica
+    - ipa-install
+  command: >
+    ipa-replica-install -U
+    --password {{ vault_ipaserver_dir_admin_password }}
+    --admin-password {{ vault_ipaserver_admin_password }}
+    --mkhomedir
+    --setup-dns
+    --ip-address {{ ansible_default_ipv4.address }}
+    {{ '--forwarder=%s' % ipaserver_dns_forwarder
+       if ipaserver_dns_forwarder | default(False) else '--no-forwarders' }}
+    {{ '--mkhomedir' if ipaserver_mkhomedir | default(True) else '' }}
+    {{ '--setup-dns' if ipaserver_setup_dns | default(True) else '' }}
+    {{ '--ssh-trust-dns' if ipaserver_ssh_trust_dns | default(True) else '' }}
+    {{ '' if ipaserver_configure_ssh | default(True) else '--no-ssh' }}
+    {{ '' if ipaserver_configure_sshd | default(True) else '--no-sshd' }}
+    {{ '' if ipaserver_ui_redirect | default(True) else '--no-ui-redirect' }}
+    /var/lib/ipa/replica-info-{{ ansible_fqdn }}.gpg
+  args:
+    creates:
+      /etc/ipa/REPLICA_INSTALLED
+
+- name: Create the rndc configuration file and key
+  command: "{{item}}"
+  with_items:
+   - /usr/sbin/rndc-confgen -a
+   - /sbin/restorecon /etc/rndc.key
+   - chown root:named /etc/rndc.key
+   - chmod 0640 /etc/rndc.key
+
+- name: Add localhost mapping to host.domain for httpd cert to match.
+  lineinfile:
+    dest=/etc/hosts
+    regexp="^127\.0\.0\.1"
+    line="127.0.0.1 {{ ansible_hostname }}.{{ipaserver_domain}}"
+    state=present
+    owner=root
+    group=root
+    mode=0644

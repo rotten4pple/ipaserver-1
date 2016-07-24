@@ -1,0 +1,4 @@
+    - hosts: ipaserver-replica
+      roles:
+       - { role: ipaserver-replica }
+       

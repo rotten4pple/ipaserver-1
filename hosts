@@ -10,15 +10,24 @@
 
 # Ex 1: Ungrouped hosts, specify before any group headers.
 
+#uncomment if run locally
 #localhost ansible_connection=local
 
-## green.example.com
-## blue.example.com
+######   Always use IP address, since we don't nessarily have right DNS to resolve each host, this module it's assuming it's using IP
 ## 192.168.100.1
 ## 192.168.100.10
-[servers]
-10.104.1.142
 
+
+
+[ipamaster]
+10.104.1.140
+
+
+[ipaserver-replica]
+10.104.1.198
+
+[ipa-web-client]
+10.104.1.142
 
 # Ex 2: A collection of hosts belonging to the 'webservers' group
 

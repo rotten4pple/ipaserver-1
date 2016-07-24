@@ -1,64 +1,14 @@
 ---
-#- name: upgrade all package
-#  yum name=* state=latest
-#
-- name: Hard set the hostname
-  hostname: name={{ ansible_hostname}}.{{ipaserver_domain}}
-
-- name: Add host entry
-  lineinfile:
-    dest=/etc/hosts
-    regexp="{{ ansible_hostname }}"
-    line="{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ipaserver_domain}}"
-    state=present
-    owner=root
-    group=root
-    mode=0644
-- name: remove localhost line for now, since  KDC service does not listen on localhost
-  lineinfile:
-    dest=/etc/hosts
-    regexp="127\.0\.0\.1"
-    state=absent
-    owner=root
-    group=root
-    mode=0644
-
-- stat: path=/etc/cloud/cloud.cfg
-  register: isOpenstack
-
-- name: take out update_host prevent hostname changed by cloud-init
-  lineinfile:
-    dest=/etc/cloud/cloud.cfg
-    regexp="update_hostname"
-    state=absent
-  when: isOpenstack.stat.exists == True
-
-# CPRNG
-- name: Install rng tools for faster random generator
-  yum: name=rng-tools state=present
-
-- name: Start the rngd service
-  service: name=rngd enabled=yes state=started
-
-- name: Remove chrony (FreeIPA uses ntpd)  if exist
-  yum: name={{ item }} state=absent
-  with_items:
-   - chrony
-#   - ipa-server
-#   - ipa-client 
-#   - bind-dyndb-ldap
-#   - bind-pkcs11
-- name: Ensure software is installed (yum)
+- name: Ensure software is installed (yum), this might take several minutes
   yum: name={{ item }} state=present
   with_items: '{{ipaserver_packages}}'
-  when: ansible_distribution == "CentOS" or
-        (ansible_distribution == "Fedora" and ansible_distribution_version|int <= 21)
+  
 
-- name: Ensure software is installed (dnf)
-  dnf: name={{ item }} state=present
-  with_items: '{{ipaserver_packages}}'
-  when: ansible_distribution == "Fedora" and ansible_distribution_version|int > 21
-
+- name: force uninstall is true, uninstall ipa-server-
+  command: ipa-server-install --uninstall -U
+  ignore_errors: yes
+  when: force_uninstall
+  
 - name: Run the ipaserver installer, this will take several minutes, go take a coffee break..
   action: command
     {{ ipaserver_base_command }}
@@ -99,4 +49,29 @@
     owner=root
     group=root
     mode=0644
+    
+- name: create Migrate.sh to migrate users/groups from another freeIPA to this one
+  tags:
+    - migrate
+  lineinfile:
+    dest={{migrateCmdFile}}
+    regexp="{{item}}"
+    line="{{item}}"
+    owner=root
+    group=root
+    mode=0755
+    create=True
+  with_items:
+    - echo {{ vault_ipaserver_admin_password }} | kinit admin
+    - ipa config-mod --enable-migration=TRUE
+    - echo {{migrateSrc_ipa_dir_admin_password}} | {{ migrateCmd }}{{migrateSrc_host}}
+  when: migrate_enable
+    
 
+- name: run migrate.sh, this might take a while
+  tags:
+    - migrate
+  command: "{{item}}"
+  with_items:
+   - sh {{migrateCmdFile}}
+  when: migrate_enable

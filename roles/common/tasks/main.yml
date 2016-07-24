@@ -1,0 +1,71 @@
+---
+- name: upgrade all package
+  yum: name=* state=latest
+  
+
+- name: Create directories in ipa_data_dir for staging
+  tags:
+    - bootstrap
+  become: no
+  local_action:
+    file path={{ item }} state=directory
+  with_items:
+    - "{{ ipa_data_dir }}"
+  run_once: true
+  changed_when: false
+
+- name: Hard set the hostname
+  hostname: name={{ ansible_hostname}}.{{ipaserver_domain}}
+
+- name: Add host entry
+  lineinfile:
+    dest=/etc/hosts
+    regexp="{{ ansible_hostname }}"
+    line="{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ipaserver_domain}}"
+    state=present
+    owner=root
+    group=root
+    mode=0644
+- name: remove localhost line for now, since  KDC service does not listen on localhost
+  lineinfile:
+    dest=/etc/hosts
+    regexp="127\.0\.0\.1"
+    state=absent
+    owner=root
+    group=root
+    mode=0644
+
+- stat: path=/etc/cloud/cloud.cfg
+  register: isOpenstack
+
+- name: take out update_host prevent hostname changed by cloud-init
+  lineinfile:
+    dest=/etc/cloud/cloud.cfg
+    regexp="update_hostname"
+    state=absent
+  when: isOpenstack.stat.exists == True
+
+# CPRNG
+- name: Install rng tools for faster random generator
+  yum: name=rng-tools state=present
+
+- name: Start the rngd service
+  service: name=rngd enabled=yes state=started
+
+- name: Remove chrony (FreeIPA uses ntpd)  if exist
+  yum: name={{ item }} state=absent
+  with_items:
+   - chrony
+
+ 
+
+- name: install FreeIPA client package 
+  tags:
+    - ipa
+    - package-install
+    - network
+  yum: name={{ item }} state=present
+  with_items:
+   - ipa-client
+   - ipa-admintools
+   
