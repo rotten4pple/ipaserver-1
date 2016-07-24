@@ -2,7 +2,7 @@
 ansible_ssh_port: 22
 
 # password for admin, PKI and DS
-default_password: Dsra@dm1n
+default_password: password 
 vault_ipaserver_dir_admin_password: "{{ default_password }}"
 vault_ipaserver_admin_password: "{{ default_password }}"
 
