@@ -10,20 +10,29 @@ Primarily tested and functional on centos, openstack instance, but open to other
 
 	1. enter correct .pem/private key path for ssh with key connction in ansible.cfg 
 	
+	2. There are 3 in variables that you could provide in vars/private-idm.yml to override default one. this file is in .gitignore will not be checkin. .   
 
-	2. There are 2 main variables that need to be provided external to the role that have no default. 
+                ipaserver_admin_password  - admin password for freeipa server
+                ipaserver_dir_admin_password -Directory Manager password for freeipa server
+                migrateSrc_ipa_dir_admin_password - Migrating src directory maanger
+        copy vars/private-idm.yml.sample to vars/private-idm.yml and enter default for passwords.
+        you might also change the password as run time.
 
-    		ipaserver_admin_password
-    		ipaserver_dir_admin_password
-	copy vars/private-idm.yml.sample to vars/private-idm.yml and enter default for passwords.
-	you might also change the password as run time.
+
 	
-	3. update roles/ipaserver/defaults/main.yml to set default values likes domain name, realm etc.
+	3. update roles/group/all.yml to set default values likes domain name, realm etc.
 
-	4. update hostnames/IPs in hosts file
+	4. update hostnames/IPs for each role  in /hosts file
 
 To install IPA Master server:
 	ansible-playbook -i hosts -v ipamaster.yml
+
+To Migrate a old IPA server to this ipa master server
+	set migrate_enable to True in all.yml 
+	ansible-playbook -i hosts -v  --tags migrate ipamaster.yml
+To install IPA Replica Server
+	ansigle-playbook -i host -v ipaReplica.yml
+
 
 troubleshoot/lession learned:
 
