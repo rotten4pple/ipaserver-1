@@ -13,9 +13,9 @@ package_upgrade: false
 
 ipa_data_dir: /Users/aweng/git/ipserver/ipadata
 
-ipaserver_domain: dsra.io
+ipaserver_domain: darpa.dsra.io
 ipaserver_dns_forwarder: 10.105.255.250
-ipaserver_realm: DSRA.IO
+ipaserver_realm: DARPA.DSRA.IO
 ipaserver_setup_dns: True
 ipaserver_setup_ntp: True
 ipaserver_setup_ca: True
@@ -28,7 +28,8 @@ ipaserver_mkhomedir: True
 force_uninstall: False
 
 #enable migrate for other IPA master
-migrate_enable: False
+enable_4.3: False
+migrate_enable: True
 migrateSrc_ipa_dir_admin_password: "{{ default_password }}"
 migrateSrc_host: 10.1.90.11
 migrateCmd: ipa migrate-ds --bind-dn="cn=Directory Manager"  --user-container=cn=users,cn=accounts --group-container=cn=groups,cn=accounts --group-objectclass=posixgroup --user-ignore-attribute={krbPrincipalName,krbextradata,krblastfailedauth,krblastpwdchange,krblastsuccessfulauth,krbloginfailedcount,krbpasswordexpiration,krbticketflags,krbpwdpolicyreference,mepManagedEntry} --user-ignore-objectclass=mepOriginEntry --with-compat --group-overwrite-gid  ldap://

@@ -1,0 +1,8 @@
+[group_freeipa-freeipa-4-3-centos-7]
+name=Copr repo for freeipa-4-3-centos-7 owned by @freeipa
+baseurl=https://copr-be.cloud.fedoraproject.org/results/@freeipa/freeipa-4-3-centos-7/epel-7-$basearch/
+skip_if_unavailable=True
+gpgcheck=1
+gpgkey=https://copr-be.cloud.fedoraproject.org/results/@freeipa/freeipa-4-3-centos-7/pubkey.gpg
+enabled=1
+enabled_metadata=1

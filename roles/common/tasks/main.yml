@@ -1,11 +1,38 @@
 ---
+- name: copy freipa 4.3 repo to /etc/yum.repos.d
+  tags:
+    - bootstrap
+  template: src=freeipa-4.3.repo dest=/etc/yum.repos.d
+  when: enable_4.3
+
+- name: Install wget tools 
+  tags:
+    - common
+  yum: name=wget state=present
+
+- name: download EPEL repository
+  tags:
+    - common
+  get_url: url=http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm dest=/home/centos/epel-release-7-7.noarch.rpm
+
+- name: install epel rpm
+  tags:
+    - common
+  yum:
+     name: /home/centos/epel-release-7-7.noarch.rpm
+     state: present
+     
+
+   
 - name: upgrade all package
+  tags:
+    - common
   yum: name=* state=latest
   
 
 - name: Create directories in ipa_data_dir for staging
   tags:
-    - bootstrap
+    - common
   become: no
   local_action:
     file path={{ item }} state=directory
@@ -17,23 +44,29 @@
 - name: Hard set the hostname
   hostname: name={{ ansible_hostname}}.{{ipaserver_domain}}
 
-- name: Add host entry
-  lineinfile:
-    dest=/etc/hosts
-    regexp="{{ ansible_hostname }}"
-    line="{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ipaserver_domain}}"
-    state=present
-    owner=root
-    group=root
-    mode=0644
-- name: remove localhost line for now, since  KDC service does not listen on localhost
-  lineinfile:
-    dest=/etc/hosts
-    regexp="127\.0\.0\.1"
-    state=absent
-    owner=root
-    group=root
-    mode=0644
+# DNS / hosts
+- name: fix /etc/hosts
+  tags:
+    - common
+  template: src=etc_hosts dest=/etc/hosts
+  
+#- name: Add host entry
+#  lineinfile:
+#    dest=/etc/hosts
+#    regexp="{{ ansible_hostname }}"
+#    line="{{ ansible_default_ipv4.address }} {{ ansible_hostname }}.{{ipaserver_domain}}"
+#    state=present
+#    owner=root
+#    group=root
+#    mode=0644
+#- name: remove localhost line for now, since  KDC service does not listen on localhost
+#  lineinfile:
+#    dest=/etc/hosts
+#    regexp="127\.0\.0\.1"
+#    state=absent
+#    owner=root
+#    group=root
+#    mode=0644
 
 - stat: path=/etc/cloud/cloud.cfg
   register: isOpenstack

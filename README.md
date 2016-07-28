@@ -12,8 +12,8 @@ Primarily tested and functional on centos, openstack instance, but open to other
 	
 	2. There are 3 in variables that you could provide in vars/private-idm.yml to override default one. this file is in .gitignore will not be checkin. .   
 
-                ipaserver_admin_password  - admin password for freeipa server
-                ipaserver_dir_admin_password -Directory Manager password for freeipa server
+                vault_ipaserver_admin_password  - admin password for freeipa server
+                vault_ipaserver_dir_admin_password -Directory Manager password for freeipa server
                 migrateSrc_ipa_dir_admin_password - Migrating src directory maanger
         copy vars/private-idm.yml.sample to vars/private-idm.yml and enter default for passwords.
         you might also change the password as run time.

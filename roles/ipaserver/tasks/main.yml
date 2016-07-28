@@ -3,13 +3,36 @@
   yum: name={{ item }} state=present
   with_items: '{{ipaserver_packages}}'
   
+- name: get the list of templates to transfer
+  tags:
+    - copyScripts
+  become: no
+  local_action: "shell ls roles/ipaserver/templates/* | sed 's~.*/~~g'"
+  register:     template_files
 
-- name: force uninstall is true, uninstall ipa-server-
+- name:         iterate and send templates
+  tags:
+    - copyScripts
+  template:     src=templates/{{ item }} dest=/root/{{ item }}
+  with_items:
+  - "{{ template_files.stdout.splitlines() }}"
+  
+- name:  add 4.3 freeipa repo, todo try this when it's in production mode 
+  tags:
+    - bootstrap
+  template: src=freeipa-4.3.repo dest=/etc/yum.repos.d
+  when: enable_4.3
+  
+- name: check if force uninstall is true, uninstall ipa-server if true
+  tags:
+    - uninstall
   command: ipa-server-install --uninstall -U
   ignore_errors: yes
   when: force_uninstall
   
 - name: Run the ipaserver installer, this will take several minutes, go take a coffee break..
+  tags:
+    - installIpa
   action: command
     {{ ipaserver_base_command }}
     --realm {{ ipaserver_realm }}
@@ -32,7 +55,32 @@
     {{ '' if ipaserver_ui_redirect | default(True) else '--no-ui-redirect' }}
     creates=/etc/ipa/default.conf
 
+
+- name: Install KRA on FreeIPA master (2-3 minutes)
+  tags:
+    - ipaserver-master
+    - ipa-install
+    - ipa-kra-install
+  command: >
+    ipa-kra-install -U
+    -p {{ ipaserver_dir_admin_password }}
+  args:
+    creates: /etc/pki/pki-tomcat/kra/CS.cfg
+# XXX workaround for race condition
+# KRA restarts LDAP, which disconnects bind-ldap plugin. The reconnect
+# interval is 60 seconds. A restart make sure named is working properly.
+- name: Make sure named-pkcs11 DNS is restarted
+  tags:
+    - ipaserver-master
+    - ipa-install
+    - ipa-kra-install
+  service: name=named-pkcs11 state=restarted
+  changed_when: false
+
+
 - name: Create the rndc configuration file and key
+  tags:
+    - migrate
   command: "{{item}}"
   with_items:
    - /usr/sbin/rndc-confgen -a
@@ -40,16 +88,27 @@
    - chown root:named /etc/rndc.key
    - chmod 0640 /etc/rndc.key
 
-- name: Add localhost mapping to host.domain for httpd cert to match.
+
+
+- name: Add master ipa DNS to /etc/resolv.conf
+  tags:
+    - ipaserver-replica
+    - ipa-install
+    - dns
   lineinfile:
-    dest=/etc/hosts
-    regexp="^127\.0\.0\.1"
-    line="127.0.0.1 {{ ansible_hostname }}.{{ipaserver_domain}}"
+    dest=/etc/resolv.conf
+    regexp="^nameserver"
+    line="127.0.0.1"
+    insertbefore=yes
     state=present
     owner=root
     group=root
     mode=0644
-    
+  when: ipaserver_setup_dns
+
+
+
+        
 - name: create Migrate.sh to migrate users/groups from another freeIPA to this one
   tags:
     - migrate
@@ -62,7 +121,7 @@
     mode=0755
     create=True
   with_items:
-    - echo {{ vault_ipaserver_admin_password }} | kinit admin
+    - echo {{ ipaserver_admin_password }} | kinit admin
     - ipa config-mod --enable-migration=TRUE
     - echo {{migrateSrc_ipa_dir_admin_password}} | {{ migrateCmd }}{{migrateSrc_host}}
   when: migrate_enable
@@ -75,3 +134,29 @@
   with_items:
    - sh {{migrateCmdFile}}
   when: migrate_enable
+
+- name: enable password auth
+  tags:
+    - sshdSetup
+  lineinfile:
+    dest=/etc/ssh/sshd_config
+    regexp="^PasswordAuthentication"
+    line="PasswordAuthentication yes"
+    state=present
+    owner=root
+    group=root
+    mode=0644
+- name: update auth config and go ahead reboot to apply all auth update
+  tags:
+    - sshdSetup
+  command: "{{item}}"
+  with_items:
+   - authconfig --enablemkhomedir --update
+
+- name: restart machine
+  tags:
+    - sshdSetup
+  shell: sleep 2 && shutdown -r now "Ansible updates triggered"
+  async: 1
+  poll: 0
+  ignore_errors: true
