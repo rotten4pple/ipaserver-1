@@ -111,7 +111,15 @@
    - chown root:named /etc/rndc.key
    - chmod 0640 /etc/rndc.key
 
-
+- name: Add localhost mapping to host.domain for httpd cert to match.
+  lineinfile:
+    dest=/etc/hosts
+    regexp="^127\.0\.0\.1"
+    line="127.0.0.1 {{ ansible_hostname }}.{{ipaserver_domain}}"
+    state=present
+    owner=root
+    group=root
+    mode=0644
 - name: enables sshd to auth using free ipa ldap
   tags:
     - sshdSetup

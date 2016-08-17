@@ -25,12 +25,12 @@ ipaserver_configure_ssh: True
 ipaserver_configure_sshd: True
 ipaserver_mkhomedir: True
 #only set this to true, if you want to do a clean reinstall of IPA server/replica
-force_uninstall: False
+force_uninstall: True
 
 #enable migrate for other IPA master
 enable_4.3: False
 migrate_enable: True
 migrateSrc_ipa_dir_admin_password: "{{ default_password }}"
 migrateSrc_host: 10.1.90.11
-migrateCmd: ipa migrate-ds --bind-dn="cn=Directory Manager"  --user-container=cn=users,cn=accounts --group-container=cn=groups,cn=accounts --group-objectclass=posixgroup --user-ignore-attribute={krbPrincipalName,krbextradata,krblastfailedauth,krblastpwdchange,krblastsuccessfulauth,krbloginfailedcount,krbpasswordexpiration,krbticketflags,krbpwdpolicyreference,mepManagedEntry} --user-ignore-objectclass=mepOriginEntry --with-compat --group-overwrite-gid  ldap://
+migrateCmd: ipa migrate-ds --bind-dn="cn=Directory Manager"  --user-container=cn=users,cn=accounts --group-container=cn=groups,cn=accounts --group-objectclass=posixgroup --user-ignore-attribute={krbPrincipalName,krbextradata,krblastfailedauth,krblastpwdchange,krblastsuccessfulauth,krbloginfailedcount,krbpasswordexpiration,krbticketflags,krbpwdpolicyreference,mepManagedEntry} --user-ignore-objectclass=mepOriginEntry --with-compat  ldap://
 migrateCmdFile: /root/migrate.sh

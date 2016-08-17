@@ -26,7 +26,10 @@
 - name: check if force uninstall is true, uninstall ipa-server if true
   tags:
     - uninstall
-  command: ipa-server-install --uninstall -U
+  command: "{{item}}"
+  with_items:
+    - ipa-server-install --uninstall -U
+    - ipa-kra-install --uninstall -U
   ignore_errors: yes
   when: force_uninstall
   
@@ -105,9 +108,10 @@
     group=root
     mode=0644
   when: ipaserver_setup_dns
-
-
-
+- name: clear migrate.sh file
+  tags:
+    - migrate
+  file: path={{migrateCmdFile}} state=absent
         
 - name: create Migrate.sh to migrate users/groups from another freeIPA to this one
   tags:

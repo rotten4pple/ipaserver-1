@@ -1,0 +1,30 @@
+    - hosts: ipamaster
+      vars_files:
+        - vars/private-idm.yml
+      vars_prompt:
+        - name: ipaserver_admin_password
+          prompt: "What should the admin password be for IPA?"
+          private: yes
+          default: "{{ vault_ipaserver_admin_password }}"
+        - name: ipaserver_dir_admin_password
+          prompt: "What should the admin password be for the Directory Server?"
+          private: yes
+          default: "{{ vault_ipaserver_dir_admin_password }}"
+      roles:
+         - { role: ipaserver }
+
+    - hosts: ipaserver-replica
+      vars_files:
+        - vars/private-idm.yml
+      vars_prompt:
+        - name: ipaserver_admin_password
+          prompt: "What should the admin password be for IPA?"
+          private: yes
+          default: "{{ vault_ipaserver_admin_password }}"
+        - name: ipaserver_dir_admin_password
+          prompt: "What should the admin password be for the Directory Server?"
+          private: yes
+          default: "{{ vault_ipaserver_dir_admin_password }}"
+      roles:
+       - { role: ipaserver-replica }
+       

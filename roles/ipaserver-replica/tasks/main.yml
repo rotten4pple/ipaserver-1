@@ -1,23 +1,5 @@
 ---
-- name: Fetch IPA ca.crt
-  tags:
-    - ipaserver-replica
-    - ipa-install
-    - fetch
-  fetch:
-    src=/etc/ipa/ca.crt
-    dest={{ ipa_data_dir }}/ca.crt
-    flat=yes
-  delegate_to: "{{item}}"
-  with_items: "{{ groups['ipamaster'] }}"
-  
-- name: Copy IPA ca.crt to all machines
-  tags:
-    - ipaserver-replica
-    - ipa-install
-  copy:
-    src={{ ipa_data_dir }}/ca.crt
-    dest=/etc/pki/ipa-ca.crt
+
   
  
 - name: install ipa server and dns packages

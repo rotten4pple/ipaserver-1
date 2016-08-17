@@ -26,6 +26,7 @@
 [ipaserver-replica]
 10.104.1.198
 
+
 [ipa-web-client]
 10.104.1.142
 
