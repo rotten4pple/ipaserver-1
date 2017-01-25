@@ -20,7 +20,7 @@ Primarily tested and functional on centos, openstack instance, but open to other
 
 
 	
-	3. update roles/group/all.yml to set default values likes domain name, realm etc.
+	3. update group_vars/all.yml to set default values likes domain name, realm etc.
 
 	4. update hostnames/IPs for each role  in /hosts file
 
